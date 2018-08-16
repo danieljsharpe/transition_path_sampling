@@ -36,6 +36,7 @@ class Sim_Funcs
     // perform a Verlet integration on current position & velocity, given a force
     static std::pair<double *,double *> verlet(double *x_i, double *v_i, double dt, \
                 double (*func)(double *), int ndim) {
+
         std::cout << "Called velocity verlet function (1)\n";
         int i;
         double * a_i = new double [ndim];
@@ -46,18 +47,26 @@ class Sim_Funcs
         std::cout << "Called velocity verlet function (3)\n";
 ////        std::copy(a_i,a_i+ndim,a_i_old);
         a_i_old = cen_diff(x_i,func,ndim);
-        std::cout << "Called velocity verlet function (4)\n";
+        std::cout << "a_i_old: " << a_i_old[0] << "\t" << a_i_old[1] << "\t" << &a_i_old[0] << "\t" << &a_i_old[1] << "\n";
         for (i=0;i<ndim;i++) {
             x_i[i] += (v_i[i]*dt) + (0.5*a_i[i]*pow(dt,2));
             std::cout << "x_i[i]: " << x_i[i] << "\n";
         }
         a_i = cen_diff(x_i,func,ndim);
-        for (i=0;i<ndim;i++) {
-            v_i[i] += 0.5*(a_i_old[i] + a_i[i])*dt;
+        std::cout << "a_i: " << a_i[0] << "\t" << a_i[1] << "\t" << &a_i[0] << "\t" << &a_i[1] << "\n";
+        for (i=0;i<ndim;i++) { // I THINK THIS IS THE WRONG SIGN USAGE: F = ma = -deriv
+            v_i[i] += 0.5*(a_i_old[i] + a_i[i])*dt; // THIS LINE IS CAUSING A PROBLEM!!!???
             std::cout << "v_i[i]: " << v_i[i] << "\n";
         }
+        std::cout << "a_i_old: " << a_i_old[0] << "\t" << a_i_old[1] << "\t" << &a_i_old[0] << "\t" << &a_i_old[1] << "\n";
+        std::cout << "a_i: " << a_i[0] << "\t" << a_i[1] << "\t" << &a_i[0] << "\t" << &a_i[1] << "\n";
+
         delete [] a_i;
         delete [] a_i_old;
+
+        std::cout << "a_i_old: " << a_i_old[0] << "\t" << a_i_old[1] << "\t" << &a_i_old[0] << "\t" << &a_i_old[1] << "\n";
+        std::cout << "a_i: " << a_i[0] << "\t" << a_i[1] << "\t" << &a_i[0] << "\t" << &a_i[1] << "\n";
+
         return std::make_pair(x_i,v_i);
     }
 
@@ -99,7 +108,7 @@ class TPS
     public:
 
     double T, dt, (*a_region)[2], (*b_region)[2], *init_coords, **init_path;//, **curr_path;
-    double ** curr_path = new double*[npieces];
+    double ** curr_path = new double*[npieces+1];
     double * init_vels = new double[ndim];
     int i, nsteps, ndim, npieces;
     double (*pot_func) (double *);
@@ -117,21 +126,28 @@ class TPS
         set_defaults();
         for (i=0;i<ndim;i++) {
             *(init_vels+i) = Sim_Funcs::rand_no(-0.5,0.5); }
-        for (i=0;i<npieces;i++) {
+        for (i=0;i<=npieces;i++) {
             curr_path[i] = new double[ndim]; }
         // linear interpolation between 'A' and 'B' regions to provide initial path
-        init_path = lin_path(npieces, a_region[0], b_region[0]);
+        init_path = lin_path(a_region[0], b_region[0]);
         std :: cout << "nsteps:" << nsteps << "\n";
     }
 
     ~TPS() {
+        /*
+        std::cout << "Called destructor\n";
         delete [] init_vels;
+        std::cout << "(1)\n";
         for (i=0;i<npieces;i++) {
             delete [] init_path[i];
-            delete [] curr_path[i]; }
+            std::cout << "(2)\n";
+            delete [] curr_path[i];
+            std::cout << "(3)\n"; }
         delete [] init_path;
+        std::cout << "(4)\n"; 
         delete [] curr_path;
         std :: cout << "End of the TPS simulation\n";
+        */
     }
 
     TPS(const TPS &L);
@@ -151,16 +167,18 @@ class TPS
         std :: cout << "I am talking to my friend metropolis():" << Sim_Funcs::metropolis(0.8) << "\n";
 
         // TEST LINEAR INTERPOLATION TO FIND INITIAL PATH
-        std::cout << &init_path[0][0] << "\t" << &curr_path[0][0] << "\n";
-        std::cout << &init_path[0][0]+(npieces*ndim) << "\n";
-        std::cout << init_path[3][1] << "\t" << &init_path[3][1] << "\n";
-        std::cout << curr_path[3][1] << "\t" << &curr_path[3][1] << "\n";
-        for (i=0;i<npieces;i++) {
+        for (i=0;i<=npieces;i++) {
             std::cout << "i is: " << i << "\n";
-            // THIS LINE MESSES UP THE VERLET TEST - WHY?
-            std::copy(init_path[i],init_path[i]+npieces,curr_path[i]);
+            std::copy(init_path[i],init_path[i]+ndim,curr_path[i]);
         }
-        std::cout << curr_path[3][1] << "\t" << &curr_path[3][1] << "\n";
+        for (i=0;i<=npieces;i++) {
+//          std::cout << "i: " << i << "\tinit [i][0]\t" << init_path[i][0] << "\t" << &init_path[i][0] << "\t" << \
+                       "init[i][1]\t" << init_path[i][1] << "\t" << &init_path[i][1] << "\n";
+          std::cout << "i: " << i << "\tcurr [i][0]\t" << curr_path[i][0] << "\t" << &curr_path[i][0] << "\t" << \
+                       "curr[i][1]\t" << curr_path[i][1] << "\t" << &curr_path[i][1] << "\n";
+        }
+//        std::cout << "This should fail:\n";
+//        std::cout << curr_path[9][0] << "\n";
 
         // TEST CENTRAL DIFFERENCE FORMULA
         std::cout << "\nCEN DIFF TEST\n";
@@ -172,12 +190,23 @@ class TPS
                        cen_diff_deriv[1] << "\n";
         delete [] cen_diff_deriv;
 
+        // quack
+        for (i=0;i<=npieces;i++) {
+            std::cout << "i: " << i << "\t" << &curr_path[i][0] << "\t" << &curr_path[i][1] << "\n";
+        }
+        std::cout << "\n";
+
         // TEST VELOCITY VERLET FUNCTION
         std::cout << "\nVERLET TEST\n";
         std::cout << &init_coords[0] << "\t" << &init_vels[0] << "\n";
         std::tie(x_i,v_i) = Sim_Funcs::verlet(init_coords,init_vels,dt,pot_func,ndim);
         std::cout << "x_i[0]: " << x_i[0] << " x_i[1]: " << x_i[1] << "\n";
         std::cout << "v_i[0]: " << v_i[0] << " v_i[1]: " << v_i[1] << "\n";
+        // quack
+        for (i=0;i<=npieces;i++) {
+            std::cout << "i: " << i << "\t" << &curr_path[i][0] << "\t" << &curr_path[i][1] << "\n";
+        }
+        std::cout << "\n";
 
         // TEST SHOOT FUNCTION
         std::cout << "\nSHOOT TEST\n";
@@ -201,16 +230,30 @@ class TPS
     double shoot(double ** &path) {
 
         std :: cout << "I am shooting!\n";
-        
+
+        for (i=0;i<=npieces;i++) {
+            std::cout << "i: " << i << "\t" << &path[i][0] << "\t" << &path[i][1] << "\n";
+        }
+        std::cout << "\n";
         return 1.;
     }
 
     // shifting procedure
-    double shift(double ** &path) {
+    double shift(double ** path) {
 
         std :: cout << "I am shifting!\n";
-        for (i=0;i<npieces;i++) {
+
+        for (i=0;i<=npieces;i++) {
             std::cout << "i: " << i << "\t" << path[i][0] << "\t" << path[i][1] << "\n";
+        }
+
+/*
+        for (i=0;i<=npieces;i++) {
+            std::cout << "i: " << i << "\t" << &*(path+i) << "\n";
+        }
+*/
+        for (i=0;i<=npieces;i++) {
+            std::cout << "i: " << i << "\t" << &path[i][0] << "\t" << &path[i][1] << "\n";
         }
         std::cout << "\n";
         // change an entry in the array
@@ -226,16 +269,16 @@ class TPS
     }
 
     // linear interpolation between centre of 'A' and 'B' regions to provide initial path
-    double **lin_path(int n_pieces, double *a_centre, double *b_centre) {
+    double **lin_path(double *a_centre, double *b_centre) {
 
         double* increment = new double [ndim];
-        double** path_2d = new double*[n_pieces]; // path is 2D array
+        double** path_2d = new double*[npieces+1]; // path is 2D array
         int i, j;
 
         for (j=0;j<ndim;j++) {
-            increment[j] = (*(b_centre+j)-*(a_centre+j))/double(n_pieces);
+            increment[j] = (*(b_centre+j)-*(a_centre+j))/double(npieces);
         }
-        for (i=0;i<=n_pieces;i++) {
+        for (i=0;i<=npieces;i++) {
             path_2d[i] = new double[ndim];
             for (j=0;j<ndim;j++) {
                 path_2d[i][j] = *(a_centre+j) + (increment[j]*double(i));
